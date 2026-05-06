@@ -32,3 +32,6 @@ htmlcov/
 
 # Project-local agent/runtime artifacts
 .omx/
+
+# LlamaIndex local index storage (기본 저장 경로)
+storage/
