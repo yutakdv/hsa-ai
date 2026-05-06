@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  # -----------------------------------------------------
+  # 1) PR Title Check
+  #    커밋/PR 타이틀 규칙: docs/development-guide.md, harness/AGENTS.md 참조
+  #    형식: Type: 제목
+  # -----------------------------------------------------
+  title-check:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate PR title format
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+
+            // 허용 타입: docs/development-guide.md 및 harness/AGENTS.md 기준
+            // !BREAKING CHANGE, !HOTFIX는 앞의 ! 포함 전체가 타입
+            const regex = /^(Feat|Fix|Docs|Style|Refactor|Test|Chore|Comment|Rename|Remove|Init|Merge|!BREAKING CHANGE|!HOTFIX):\s*.+/;
+
+            if (!regex.test(title)) {
+              core.setFailed(
+                `PR 제목 형식이 올바르지 않습니다: "${title}"\n\n` +
+                `올바른 형식:\n` +
+                `  Type: 제목 설명\n\n` +
+                `허용 타입:\n` +
+                `  Feat       | 새로운 기능 추가\n` +
+                `  Fix        | 버그 수정\n` +
+                `  Docs       | 문서 수정\n` +
+                `  Style      | 코드 포맷 등 동작 변경 없는 수정\n` +
+                `  Refactor   | 동작 변경 없는 코드 구조 개선\n` +
+                `  Test       | 테스트 코드 추가/수정\n` +
+                `  Chore      | 패키지, .gitignore 등 설정 변경\n` +
+                `  Comment    | 주석 추가/변경\n` +
+                `  Rename     | 파일/폴더명 수정 또는 이동\n` +
+                `  Remove     | 파일 삭제\n` +
+                `  Init       | 프로젝트 초기 세팅\n` +
+                `  Merge      | 브랜치 merge\n` +
+                `  !BREAKING CHANGE | 스키마 필드 삭제, 타입 변경 등 인터페이스 변경\n` +
+                `  !HOTFIX    | 치명적 버그 즉시 수정\n\n` +
+                `예시:\n` +
+                `  Feat: 문의 분류 API 추가\n` +
+                `  Fix: AutoReplyDecision 검증 오류 수정\n` +
+                `  !BREAKING CHANGE: inquiryId 필드 타입 변경`
+              );
+            }
