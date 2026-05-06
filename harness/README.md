@@ -20,7 +20,7 @@ root/
 │   ├── CLAUDE.md           # Claude 전용 사고 방식 지침
 │   └── CODEX.md            # Codex 전용 작업 규정
 ├── docs/
-│   ├── api-contract.md     # AI 처리 로직 및 출력 형식 상세 정의 
+│   ├── api-contract-v2.md  # AI 처리 로직 및 출력 형식 상세 정의 (single source of truth)
 │   └── ...
 ├── schemas/                # Pydantic 데이터 모델
 │   ├── classification.py   # 문의 분류 결과 모델
@@ -32,3 +32,4 @@ root/
     ├── grader.py           # 응답 채점 로직
     ├── report.py           # 최종 리포트 생성 모듈
     └── main.py             # 전체 평가 프로세스 통합 실행 및 지표 측정
+```

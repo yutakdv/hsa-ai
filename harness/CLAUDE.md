@@ -1,7 +1,8 @@
 # CLAUDE.md
 
 HSA 프로젝트 Claude 전용 행동 지침.
-기본 코딩 원칙(1~4) + HSA 전용 원칙(5~7)으로 구성된다.
+기본 코딩 원칙(1~4) + HSA 전용 원칙(5~9)으로 구성된다.
+공통 규칙은 AGENTS.md를 따른다.
 
 ---
 
@@ -69,30 +70,37 @@ HSA 프로젝트 Claude 전용 행동 지침.
 
 ## 5. HSA 작업 범위 제한
 
-Claude가 이 프로젝트에서 넘지 말아야 할 경계.
+작업 범위 경계와 공통 판단 기준은
+**AGENTS.md "AI 역할 범위", "절대 하면 안 되는 것"** 및
+**docs/api-contract-v2.md "기본 원칙", "관리자 검토가 필요한 경우"** 를 따른다.
+
+아래는 Claude가 추가로 적용하는 사고 방식이다.
 
 **분류:**
-- 분류 결과가 모호하거나 복합적이면 `기타 문의`로 처리한다. 억지로 분류하지 않는다.
-- `confidence`가 낮을 때 높은 값처럼 보이도록 이유를 꾸며내지 않는다.
+`confidence`가 낮을 때 높은 값처럼 보이도록 이유를 꾸며내지 않는다.
 
 **자동응답 판단:**
-- 자동응답 가능 여부는 오직 DB 조회 가능 여부로만 판단한다.
-- 정책 해석, 예외 상황, 문서 검색이 필요한 경우는 반드시 초안 생성으로 전환한다.
-- 애매한 경우 `auto_reply_available: false`가 기본값이다.
+- 정책 해석, 예외 상황, 문서 검색이 필요한 경우는 반드시 RAG 초안 생성으로 전환한다.
+- 애매한 경우 `available: false`가 기본값이다.
 
 **RAG 초안 생성:**
-- `used_documents`가 비어 있으면 초안을 생성하지 않는다.
-- 근거 없이 답변을 지어내지 않는다.
-- 검색된 문서 간 내용이 충돌하면 `needs_admin_review: true`로 처리한다.
+검색된 문서 간 내용이 충돌하면 `riskTags`에 `policy_conflict`를 포함하고 `needsAdminReview: true`로 처리한다.
+(→ AGENTS.md 실패 처리 테이블에도 등재됨)
 
 **신뢰도 대응 수칙:**
-- **Confidence >= 0.7:** 정상 처리 및 자동 응답/초안 생성.
-- **0.5 <= Confidence < 0.7:** 처리는 진행하되, `reasoningDetail`에 `[Low_Confidence]` 태그를 필수 포함하여 관리자 주의 환기.
-- **Confidence < 0.5:** 즉시 `status: "needs_review"`로 전환하고 분류 근거만 작성.
+PoC에서는 `confidence`를 hard threshold로 사용하지 않는다.
+LLM의 self-reported confidence는 실제 정답률과 일치하지 않을 수 있으며,
+evals에서 calibration을 측정한 뒤 v2에서 임계값 도입을 재검토한다.
 
-**불확실성 상황에서의 행동 (질문 vs 가정):**
-- **불확실성 > 20%:** 무리하게 답변하지 말고 사용자에게 추가 정보를 요청하는 질문을 생성한다.
-- **불확실성 ≤ 20%:** 합리적인 가정을 세우되, 답변 서두에 "~~라고 가정했을 때"라는 문구를 명시하고 진행한다.
+대신 아래의 관찰 가능한 신호를 `needs_review` 기준으로 사용한다.
+
+- 분류 결과가 `기타 문의`인 경우
+- `usedSources`가 비어 있는 경우
+- `riskTags`에 `refund`, `claim`, `policy_conflict`이 포함된 경우
+
+**정보 부족 시 행동:**
+정보가 부족하면 `needs_review`로 처리하고 `reason`에 `[No_Context]` 태그와 함께
+관리자가 추가로 확인할 정보를 명시한다. (reasoning 표준은 AGENTS.md "Reasoning 작성 표준 가이드" 참조)
 
 ---
 
@@ -100,98 +108,65 @@ Claude가 이 프로젝트에서 넘지 말아야 할 경계.
 
 - 질문/가정 단계는 최대 1회까지만 수행한다.
 - 추가 정보 없이 해결 가능하면 즉시 구현한다.
+- LLM 재시도는 최대 2회. 2회 실패 시 `status="error"` 또는 `"needs_review"` 반환.
 
 ---
 
 ## 7. 출력 형식 강제
 
-모든 AI 출력은 `schemas/`의 Pydantic 모델을 통과해야 하며, 내부 코드와 외부 인터페이스의 명칭 규격을 엄격히 분리한다.
+모든 AI 출력은 `schemas/`의 Pydantic 모델을 통과해야 한다.
+명칭 규격은 AGENTS.md "내부 인터페이스 규칙"의 이중 컨벤션을 따른다.
 
-**명칭 규격 원칙:**
-- **내부 Python 코드:** 반드시 `snake_case`를 사용한다. (함수명, 변수명 등)
-- **외부 JSON 응답:** 백엔드 인터페이스 표준에 따라 반드시 `camelCase`를 사용한다.
-- **연결 방법:** Pydantic의 `alias_generator=to_camel` 설정을 통해 내부 `snake_case` 필드가 JSON 출력 시 `camelCase`로 자동 변환됨을 숙지한다.
-
+### 코드 패턴 (Pydantic v2)
+ 
 ```python
-# 올바른 패턴: 내부 로직은 snake_case 사용
-def classify_inquiry(content: str) -> ClassificationResult:
-    # 프롬프트에는 "응답 필드를 camelCase로 작성하라"는 지시 포함 필수
-    raw_response = call_llm_with_camel_case_instruction(content)
-    return ClassificationResult(**json.loads(raw_response))
-
+# 올바른 패턴: 내부 로직은 snake_case, 출력은 BaseHsaModel을 통해 camelCase로 변환됨
+def classify_inquiry(inquiry: CustomerInquiry) -> ClassificationResult:
+    raw = call_llm(build_classify_prompt(inquiry))
+    return ClassificationResult.model_validate_json(raw)
+ 
 # 잘못된 패턴: 함수명에 camelCase 사용 금지
-def classifyInquiry(content: str) -> ClassificationResult:
+def classifyInquiry(inquiry: CustomerInquiry) -> ClassificationResult:
+    ...
 ```
-
-재시도 시 포맷 제어:
-- 2차 재시도 시에는 반드시 시스템 프롬프트에 "Ensure all JSON keys are in camelCase" 지시어를 추가하여 파싱 성공률을 높인다.
-
-파싱 또는 Pydantic 검증 실패 시:
+ 
+`model_validate_json`은 JSON 파싱과 스키마 검증을 한 번에 수행하고, 실패 시 `ValidationError`로 통합된다.
+`json.loads(...) + Model(**data)` 패턴은 사용하지 않는다.
+ 
+### 프롬프트 작성 규칙
+ 
+- 모든 프롬프트에 다음 지시어를 포함한다:
+  `"Return JSON only. All keys must be in camelCase."`
+- 2차 재시도 시에는 위 지시어 외에 추가:
+  `"No prose, no markdown fences."`
+### 파싱 또는 Pydantic 검증 실패 시
+ 
 1. 예외를 잡아 로그에 기록한다.
-2. 해당 문의를 `관리자 검토 필요` 상태로 전환한다.
-3. 재시도 로직이 있다면 최대 2회까지만 시도한다.
-
-**Pydantic 버전 고정:**
-```
-pydantic >= 2.0, < 3.0
-```
-v1과 v2는 API가 달라 혼용하면 디버깅이 매우 어려워진다. 프로젝트 초기에 버전을 고정하고 혼용하지 않는다.
+2. 재시도 로직을 최대 2회까지 수행한다.
+3. 그래도 실패하면 `status="error"`로 반환한다.
 
 ---
 
 ## 8. 출력 안정성
 
 - 동일 입력에 대해 가능한 한 동일한 출력 구조를 유지한다.
-- reasoning 과정은 출력에 포함하지 않는다.
+- reasoning 과정은 출력에 포함하지 않는다 (`reason` 필드의 한 줄 요약은 예외).
 - 반드시 Pydantic 스키마 형태로만 반환한다.
+`schemas/base.py`의 `BaseHsaModel`을 상속한다. 자세한 컨벤션은 AGENTS.md "내부 인터페이스 규칙" 참조.
 
 ---
 
 ## 9. Eval 기준 적용
 
 작업 완료 후 반드시 eval 기준을 확인한다.
-
-- 목표 미달 시:
-  1. 프롬프트 수정
-  2. 그래도 실패 시 규칙 보강
-
+ 
+평가 지표 4가지(분류 정확도, 자동응답 분기 정확도, Pydantic 검증 통과율, RAG 근거 일치율)와
+목표치는 AGENTS.md "Eval 실행 의무" 섹션을 참조한다.
+ 
+목표 미달 시:
+1. 프롬프트 수정 우선.
+2. 그래도 실패하면 모델 변경을 검토한다.
 감으로 수정하지 않는다.
-
----
-
-## 10. Eval 루프 기준
-
-Claude가 스스로 출력을 검토할 때 사용하는 기준.
-
-테스트 케이스 40개(유형별 10개) 기준:
-
-```
-분류 정확도:         80% 이상 목표
-자동응답 분기 정확도: 85% 이상 목표
-Pydantic 검증 통과율: 95% 이상 목표
-RAG 근거 일치율:     80% 이상 목표
-```
-
-목표에 미달하면 프롬프트 수정을 먼저 시도한다.
-프롬프트 수정으로 개선되지 않으면 모델 변경을 검토한다.
-
----
-
-### 💡 추가 작업 제안: `schemas/` 공통 설정
-
-이 모든 설정이 동작하려면 `schemas/`에 있는 모든 모델이 아래와 같이 Pydantic의 **`alias_generator`** 기능을 포함해야 합니다.
-
-```python
-from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
-
-class BaseHsaModel(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,  # snake_case -> camelCase 자동 매핑
-        populate_by_name=True,      # 필드명과 별칭 모두 허용
-        from_attributes=True
-    )
-```
 
 ---
 
