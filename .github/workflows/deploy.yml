@@ -101,7 +101,10 @@ jobs:
         run: |
           SHORT_SHA="${head_sha:0:12}"
           IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${SHORT_SHA}"
-          docker build -t "$IMAGE_URI" .
+          # ECS Task Definition이 arm64(Graviton)이므로 플랫폼 명시
+          # GitHub Actions runner는 amd64이므로 크로스 컴파일 발생
+          # 명시하지 않으면 amd64 이미지가 빌드되어 ECS에서 exec format error 발생
+          docker build --platform linux/arm64 -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
         env:
