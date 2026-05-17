@@ -26,8 +26,9 @@ on:
 # [수정] 워크플로 레벨은 최소 권한(read)으로 제한
 # write 권한은 실제로 필요한 deploy.yml의 deploy job에서만 선언
 permissions:
-  contents: read
-  pull-requests: read
+  contents: write
+  pull-requests: write
+  id-token: write
 
 # [추가] 같은 PR에 커밋이 연속으로 push될 때 구 커밋 CI는 취소
 # deploy job은 deploy.yml의 concurrency(cancel-in-progress: false)로 별도 직렬화
