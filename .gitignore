@@ -35,3 +35,7 @@ htmlcov/
 
 # LlamaIndex local index storage (기본 저장 경로)
 storage/
+
+
+# Docker
+docker-compose.override.yml

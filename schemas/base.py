@@ -4,8 +4,6 @@ schemas/base.py
 HSA 프로젝트의 모든 Pydantic 모델이 상속하는 기반 클래스.
 내부 snake_case 필드를 외부 JSON에서 camelCase로 자동 변환한다.
 
-자세한 컨벤션은 docs/api-contract.md "명명 규칙" 섹션 및
-harness/AGENTS.md "내부 인터페이스 규칙" 섹션을 참조.
 """
 
 from pydantic import BaseModel, ConfigDict

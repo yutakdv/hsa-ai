@@ -1,0 +1,19 @@
+services:
+  api:
+    build: .
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    volumes:
+      # 소스 코드 마운트: 파일 수정 시 컨테이너에 즉시 반영
+      - .:/workspace
+      # 로컬 .venv(Mac 바이너리)가 컨테이너 환경을 오염시키지 않도록 차단
+      - /workspace/.venv
+      # LlamaIndex 인덱스 영속 저장
+      - storage:/workspace/storage
+    env_file:
+      - .env
+    # 로컬 개발용: 코드 변경 시 자동 재시작
+    command: uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload
+
+volumes:
+  storage:

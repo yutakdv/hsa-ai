@@ -6,7 +6,7 @@ api-contract-v2.md "Request" 섹션의 매핑.
 """
 
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import Field
 
@@ -28,14 +28,14 @@ class CustomerInquiry(BaseHsaModel):
     """
 
     inquiry_id: str = Field(..., min_length=1, description="백엔드 문의 고유 ID")
-    channel: Optional[Channel] = Field(default=None, description="유입 채널")
+    channel: Channel | None = Field(default=None, description="유입 채널")
     message: str = Field(
         ...,
         min_length=1,
         max_length=2000,
         description="고객 문의 원문",
     )
-    context: Optional[Dict[str, Any]] = Field(
+    context: dict[str, Any] | None = Field(
         default=None,
         description=(
             "답변 작성에 필요한 운영 데이터 맥락. "

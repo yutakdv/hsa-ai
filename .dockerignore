@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# 가상환경 (컨테이너 내부에서 재설치)
+.venv/
+
+# 테스트 / 린트 캐시
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 시크릿 (env_file로 주입)
+.env
+.env.*
+
+# LlamaIndex 인덱스 (volume으로 관리)
+storage/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Git
+.git/
+.github/
+
+# 빌드 결과물
+build/
+dist/
+
+# 개발/문서 전용 디렉터리 (프로덕션 이미지 불필요)
+tests/
+evals/
+docs/
+harness/

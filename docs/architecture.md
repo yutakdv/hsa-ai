@@ -139,7 +139,7 @@ def generate_rag_draft(inquiry: CustomerInquiry) -> RagDraftAnswer | None:
 
 ```text
 hsa-AI/
-├── schemas/                     ← 루트 레벨. 이미 생성됨
+├── schemas/
 │   ├── base.py
 │   ├── inquiry.py
 │   ├── classification.py

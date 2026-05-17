@@ -9,8 +9,6 @@ decide_auto_reply 함수의 반환 타입.
 - 백엔드: 채워진 응답을 받아 고객 채널로 전송
 """
 
-from typing import Optional
-
 from pydantic import Field, model_validator
 
 from schemas.base import BaseHsaModel
@@ -26,7 +24,7 @@ class AutoReplyDecision(BaseHsaModel):
     """
 
     available: bool = Field(..., description="자동응답 가능 여부")
-    filled_answer: Optional[str] = Field(
+    filled_answer: str | None = Field(
         default=None,
         description="템플릿에 context 값을 삽입한 자동응답. available=True일 때만 채움",
     )

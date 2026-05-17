@@ -10,7 +10,6 @@ AutoReplyDecision, RagDraftAnswer)은 외부에 노출하지 않는다.
 """
 
 from enum import Enum
-from typing import List, Optional
 
 from pydantic import Field
 
@@ -65,7 +64,7 @@ class InquiryProcessData(BaseHsaModel):
             "source: AutoReplyDecision.available"
         ),
     )
-    draft_answer: Optional[str] = Field(
+    draft_answer: str | None = Field(
         default=None,
         description=(
             "답변 내용. "
@@ -85,8 +84,8 @@ class InquiryProcessData(BaseHsaModel):
             "검토 필요 시 [No_Context] 또는 [Complex] 태그 포함 문자열"
         ),
     )
-    risk_tags: List[RiskTag] = Field(default_factory=list, description="위험 태그 목록")
-    used_sources: List[str] = Field(
+    risk_tags: list[RiskTag] = Field(default_factory=list, description="위험 태그 목록")
+    used_sources: list[str] = Field(
         default_factory=list,
         description=(
             "출처 목록. prefix로 구분: "
@@ -104,5 +103,5 @@ class InquiryProcessResult(BaseHsaModel):
     """
 
     status: ProcessStatus
-    data: Optional[InquiryProcessData] = None
-    error: Optional[ProcessError] = None
+    data: InquiryProcessData | None = None
+    error: ProcessError | None = None
