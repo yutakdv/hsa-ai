@@ -1,117 +1,198 @@
 name: CI
 
-# development → main PR이 열리거나 새 커밋이 push될 때만 실행
-# 소스 브랜치가 development가 아니면 즉시 차단
+# development·main 양쪽 브랜치에 **동일 사본**으로 둔다.
+# pull_request 워크플로 정의는 base(target) 브랜치에서 읽으므로, 파일이 같아야
+# development→main 머지에서 .github/workflows 충돌이 구조적으로 사라진다.
 #
-# [개선된 배포 순서]
-# 기존: merge → build → ECR push → ECS deploy
-# 개선: build → ECR push → merge → ECS deploy
+# 전환별 실행 잡 (github.base_ref로 분기):
+#   feature → development : title-check · lint-and-test · eval        (병렬)
+#   development → main     : title-check · check-source → lint-and-test → docker-build → deploy
 #
-# merge 이전에 ECR push까지 완료하여 merge 이후 실패 지점을
-# ECS deploy 단계 하나로 줄임
-# ECS deploy 실패 시 Circuit Breaker가 자동 롤백하므로 서비스는 안전
-#
-# [브랜치 보호 규칙 설정 필요]
-# GitHub → Settings → Branches → main → Require status checks to pass:
-#   - Check Source Branch
-#   - Lint & Test
-#   - Docker Build Check
-# 위 3개를 required로 등록해야 CI 실패 시 머지 버튼이 비활성화됨
+# deploy.yml(reusable)은 main에서 복사해 양쪽에 동일하게 둔다.
+# development에서는 call-deploy가 base_ref!=main이라 skip → deploy.yml은 절대 실행되지 않음.
 
 on:
   pull_request:
-    branches: [main]
+    branches: [development, main]
+    # edited 제외: 통합본은 deploy 파이프라인을 품으므로, PR 제목/본문 편집이
+    # call-deploy(ECR push→merge→ECS) 또는 eval(OpenAI 비용)을 재실행하면 안 된다.
+    # 코드 수정 push는 synchronize라 정상 동작. 제목만 고친 경우 title-check 재검사는
+    # 새 커밋 push 또는 Actions UI "Re-run jobs"로.
     types: [opened, synchronize, reopened]
 
-# [수정] 워크플로 레벨은 최소 권한(read)으로 제한
-# write 권한은 실제로 필요한 deploy.yml의 deploy job에서만 선언
+# deploy(squash merge + OIDC)에 필요한 권한. development PR 잡엔 과하지만 main parity 유지.
 permissions:
   contents: write
   pull-requests: write
   id-token: write
 
-# [추가] 같은 PR에 커밋이 연속으로 push될 때 구 커밋 CI는 취소
-# deploy job은 deploy.yml의 concurrency(cancel-in-progress: false)로 별도 직렬화
+# 같은 PR에 커밋이 연속 push되면 진행 중인 CI를 취소.
+# 단, main 대상 PR은 call-deploy(ECR push→merge→ECS)가 돌므로 취소하면 안 된다.
+# (배포 도중 부모 워크플로가 취소되면 머지·배포 절반 상태가 됨)
+# → base가 main일 때만 cancel을 끄고, 새 push는 직렬로 대기시킨다.
 concurrency:
   group: ci-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.base_ref != 'main' }}
 
 jobs:
-  # ----------------------------------------------------------
-  # 0. 소스 브랜치 검증
-  #    development → main 이외의 PR은 여기서 차단
-  #    GitHub 브랜치 보호 규칙(required status check)과 함께 사용해야
-  #    UI에서도 머지가 불가능해짐
-  # ----------------------------------------------------------
+  # -----------------------------------------------------
+  # 1) PR Title Check — 모든 PR
+  #    형식: Type: 제목 (docs/development-guide.md, harness/AGENTS.md 기준)
+  # -----------------------------------------------------
+  title-check:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title format
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+
+            // 허용 타입: docs/development-guide.md 및 harness/AGENTS.md 기준
+            // !BREAKING CHANGE, !HOTFIX는 앞의 ! 포함 전체가 타입
+            const regex = /^(Feat|Fix|Docs|Style|Refactor|Test|Chore|Comment|Rename|Remove|Init|Merge|!BREAKING CHANGE|!HOTFIX):\s*.+/;
+
+            if (!regex.test(title)) {
+              core.setFailed(
+                `PR 제목 형식이 올바르지 않습니다: "${title}"\n\n` +
+                `올바른 형식:\n` +
+                `  Type: 제목 설명\n\n` +
+                `허용 타입:\n` +
+                `  Feat       | 새로운 기능 추가\n` +
+                `  Fix        | 버그 수정\n` +
+                `  Docs       | 문서 수정\n` +
+                `  Style      | 코드 포맷 등 동작 변경 없는 수정\n` +
+                `  Refactor   | 동작 변경 없는 코드 구조 개선\n` +
+                `  Test       | 테스트 코드 추가/수정\n` +
+                `  Chore      | 패키지, .gitignore 등 설정 변경\n` +
+                `  Comment    | 주석 추가/변경\n` +
+                `  Rename     | 파일/폴더명 수정 또는 이동\n` +
+                `  Remove     | 파일 삭제\n` +
+                `  Init       | 프로젝트 초기 세팅\n` +
+                `  Merge      | 브랜치 merge\n` +
+                `  !BREAKING CHANGE | 스키마 필드 삭제, 타입 변경 등 인터페이스 변경\n` +
+                `  !HOTFIX    | 치명적 버그 즉시 수정\n\n` +
+                `예시:\n` +
+                `  Feat: 문의 분류 API 추가\n` +
+                `  Fix: AutoReplyDecision 검증 오류 수정\n` +
+                `  !BREAKING CHANGE: inquiryId 필드 타입 변경`
+              );
+            }
+
+  # -----------------------------------------------------
+  # 2) Check Source Branch — main 대상 PR만
+  #    development → main 이외의 PR을 여기서 차단
+  # -----------------------------------------------------
   check-source-branch:
     name: Check Source Branch
+    if: github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Verify PR source is development
         run: |
           if [[ "${{ github.head_ref }}" != "development" ]]; then
-            echo "::error::main으로의 PR은 development 브랜치에서만 허용됩니다."
-            echo "::error::현재 소스 브랜치: ${{ github.head_ref }}"
+            echo "::error::main으로의 PR은 development 브랜치에서만 허용됩니다 (현재: ${{ github.head_ref }})"
             exit 1
           fi
 
-  # ----------------------------------------------------------
-  # 1. 린트 & 테스트
-  #    pyproject.toml 기반 프로젝트이므로 pip install -e 로 설치
-  #    ruff/pytest는 pyproject.toml [dev] extras에 포함된 것으로 가정
-  # ----------------------------------------------------------
+  # -----------------------------------------------------
+  # 3) Lint & Test — 모든 PR (needs 없음 → development PR에서도 실행)
+  #    ruff + pytest. pyproject.toml [dev] extras 사용.
+  # -----------------------------------------------------
   lint-and-test:
     name: Lint & Test
     runs-on: ubuntu-latest
-    needs: check-source-branch
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-
       - name: Install dependencies
         run: pip install -e ".[dev]"
-
       - name: Lint
         run: ruff check .
-
       - name: Test
-        run: pytest -q
+        run: HSA_TEST_MODE=true pytest -q
 
-  # ----------------------------------------------------------
-  # 2. Docker 빌드 검증 (push 없이 빌드만)
-  #    CI 단계에서는 빌드 가능 여부만 확인
-  #    실제 ECR 푸시는 deploy.yml에서 merge 전에 수행
-  # ----------------------------------------------------------
-  docker-build-check:
-    name: Docker Build Check
+  # -----------------------------------------------------
+  # 4) Eval Gate — development 대상 PR만 (비싸고 비결정적)
+  #    evals/runner.py가 http://localhost:8000으로 실제 HTTP 호출을 하므로
+  #    서버를 기동한 뒤 eval을 돌리고 마지막에 종료한다.
+  #    실제 LLM/임베딩을 호출하므로 HSA_TEST_MODE를 켜지 않고 OPENAI_API_KEY를 주입한다.
+  #    ⚠️ OPENAI_API_KEY repo secret 필수 + 비용/임계값 정책 확정 후 활성화 (plan §1).
+  #       정책 미정이면 이 job 전체를 주석 처리한다.
+  # -----------------------------------------------------
+  eval:
+    name: Eval Gate
+    if: github.base_ref == 'development'
     runs-on: ubuntu-latest
-    needs: check-source-branch
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Start API server (lifespan에서 인덱스 빌드)
+        run: |
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+      - name: Wait for /health
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8000/health >/dev/null; then
+              echo "server ready"; exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::AI 서버가 기동되지 않음"; cat server.log; exit 1
+      - name: Run evals (4지표 게이트)
+        run: python evals/main.py
+      - name: Stop API server
+        if: always()
+        run: kill "$SERVER_PID" 2>/dev/null || true
 
-      - name: Build Docker image (no push)
-        run: docker build -t hsa-check:ci .
+  # -----------------------------------------------------
+  # 5) Docker Build Check — main 대상 PR만
+  #    테스트 통과해야 실행(needs lint-and-test) → 실패 시 ECR/배포 전 차단.
+  #    빌드 가능 여부만 확인(push 없음). 실제 ECR 푸시는 deploy.yml에서.
+  # -----------------------------------------------------
+  docker-build-check:
+    name: Docker Build Check
+    if: github.base_ref == 'main'
+    needs: [check-source-branch, lint-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # deploy.yml과 동일한 arm64 빌드 경로를 검증한다.
+      # amd64 기본 빌드로 체크하면 arm64에서만 터지는 빌드 실패를 배포 직전에야 발견하게 된다.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image (arm64, no push)
+        run: docker buildx build --platform linux/arm64 -t hsa-check:ci .
 
-  # ----------------------------------------------------------
-  # 3. CI 통과 시 deploy.yml 호출
-  #    lint-and-test + docker-build-check 둘 다 통과해야 실행
-  #    deploy.yml에서 ECR 푸시 → squash merge → ECS 배포 순으로 처리
-  #
-  #    head_sha: PR 브랜치의 커밋 SHA
-  #    → merge 전 빌드이므로 이 SHA를 ECR 이미지 태그로 사용
-  #    → merge 후 생성되는 squash 커밋 SHA와 구분됨
-  # ----------------------------------------------------------
+  # -----------------------------------------------------
+  # 6) Call Deploy — main 대상 PR만
+  #    lint-and-test + docker-build-check 둘 다 통과해야 실행.
+  #    deploy.yml에서 ECR 푸시 → squash merge → ECS 배포.
+  # -----------------------------------------------------
   call-deploy:
     name: Call Deploy
+    if: github.base_ref == 'main'
     needs: [lint-and-test, docker-build-check]
     uses: ./.github/workflows/deploy.yml
     with:
-      # [수정] pr_number를 string으로 전달 (deploy.yml input 타입 변경에 대응)
       pr_number: ${{ github.event.pull_request.number }}
       head_sha: ${{ github.event.pull_request.head.sha }}
-    secrets: inherit  # AWS_OIDC_ROLE_ARN 등 secrets 전달
+    secrets: inherit
