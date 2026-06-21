@@ -1,14 +1,15 @@
-"""
-RAG 기반 답변 초안 생성 service.
-
-현재는 실제 LlamaIndex 검색 연결 전 placeholder다.
-process_inquiry orchestrator가 RAG 근거 없음 경로를 집약할 수 있도록 None을 반환한다.
-"""
-
+from app.boundaries import policy_retriever
 from schemas.inquiry import CustomerInquiry
+from schemas.process_result import RiskTag
 from schemas.rag_draft import RagDraftAnswer
 
 
-def generate_rag_draft(inquiry: CustomerInquiry) -> RagDraftAnswer | None:
-    """정책 문서 근거가 없거나 RAG 미구현 상태이면 None을 반환한다."""
-    return None
+def generate_rag_draft(
+    inquiry: CustomerInquiry,
+) -> tuple[RagDraftAnswer | None, list[RiskTag]]:
+    """정책 문서 기반 답변 초안 생성.
+
+    반환: (답변 초안 | None, 위험 태그). 근거 없으면 (None, ...).
+    정책 충돌 감지 시 위험 태그에 policy_conflict가 포함된다.
+    """
+    return policy_retriever.retrieve_and_generate(inquiry.message, inquiry.context)

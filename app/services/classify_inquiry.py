@@ -31,7 +31,6 @@ def _build_classification_prompt(inquiry: CustomerInquiry) -> str:
     return "\n".join(
         [
             "아래 고객 문의를 하나의 category로 분류해줘.",
-            f"inquiry_id: {inquiry.inquiry_id}",
             f"channel: {channel}",
             f"message: {inquiry.message}",
         ]

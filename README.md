@@ -1,8 +1,6 @@
-# HSA AI 초기 세팅
+# HSA AI
 
-이 폴더는 HSA(Hanyang Support Agent) 프로젝트의 AI 파트가 개발을 시작하기 전에 공유해야 할 기준 문서와 최소 운영 파일만 둔다.
-
-현재 초기 세팅에서는 코드 구현 없이 프로젝트 설정 파일과 기준 문서만 유지한다.
+이 폴더는 HSA(Hanyang Support Agent) 프로젝트의 AI 서비스 코드와 기준 문서를 관리한다.
 
 ## 현재 포함 범위
 
@@ -13,13 +11,13 @@
 - 기본 ignore 규칙
 - Python 프로젝트 메타데이터와 기본 의존성 설정
 
-## 현재 제외 범위
+## 현재 구현 범위
 
-- FastAPI route 추가 또는 변경
-- service/workflow/schema 구현 추가 또는 변경
-- pytest/eval 코드 추가
-- 실제 LLM, DB, VectorDB, RAG adapter 구현
-- Docker, CI/CD 설정
+- FastAPI `POST /api/inquiries/process`
+- 문의 분류, 자동응답 판단, RAG 초안 생성 workflow
+- Markdown 정책 문서와 LlamaIndex 인덱스
+- 벡터 threshold 필터와 LLM reranker
+- pytest 기반 단위 및 HTTP 계약 테스트
 
 ## 주요 문서
 
@@ -91,7 +89,7 @@ AI 파트가 직접 담당하지 않는 책임은 다음과 같다.
 
 초기 PoC는 무거운 multi-agent framework를 먼저 붙이는 방식이 아니라, FastAPI, Pydantic AI, Pydantic v2, LlamaIndex를 중심으로 작게 시작한다.
 
-이 초기 세팅 단계에서는 코드 구현보다 책임 경계, 프레임워크 선택, API 계약 같은 기준 문서를 우선한다.
+현재 구현은 책임 경계, 프레임워크 선택, API 계약 문서를 기준으로 유지한다.
 
 ## 다음 단계에서 정할 것
 

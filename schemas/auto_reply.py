@@ -12,6 +12,7 @@ decide_auto_reply 함수의 반환 타입.
 from pydantic import Field, model_validator
 
 from schemas.base import BaseHsaModel
+from schemas.process_result import RiskTag
 
 
 class AutoReplyDecision(BaseHsaModel):
@@ -29,6 +30,10 @@ class AutoReplyDecision(BaseHsaModel):
         description="템플릿에 context 값을 삽입한 자동응답. available=True일 때만 채움",
     )
     reason: str = Field(..., min_length=1, description="자동응답 가능/불가 판단 근거")
+    risk_tags: list[RiskTag] = Field(
+        default_factory=list,
+        description="위험 태그 목록. available=False일 때 감지된 태그를 담는다.",
+    )
 
     @model_validator(mode="after")
     def _check_filled_answer_consistency(self) -> "AutoReplyDecision":

@@ -33,9 +33,11 @@ htmlcov/
 # Project-local agent/runtime artifacts
 .omx/
 
-# LlamaIndex local index storage (기본 저장 경로)
-storage/
-
-
 # Docker
 docker-compose.override.yml
+
+# 개발용 로컬 스크립트 (개인 검증용, 커밋하지 않음)
+scripts/
+!scripts/
+scripts/*
+!scripts/check_retriever.py

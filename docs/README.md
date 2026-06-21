@@ -2,7 +2,7 @@
 
 이 `docs/` 폴더는 HSA AI 파트의 개발 방향을 팀원들이 같은 기준으로 이해하기 위한 작은 프로젝트 기준 문서 모음이다.
 
-초기 세팅 단계에서는 코드 구현보다 다음 내용을 먼저 맞춘다.
+코드와 문서를 변경할 때 다음 기준을 함께 맞춘다.
 
 1. 무엇을 만드는가
 2. 이번 PoC에서 어디까지 하는가
@@ -20,8 +20,12 @@
 | `api-contract.md` | API 계약 초안 (히스토리 보존용, v2로 대체됨) |
 | `framework-decision.md` | AI 파트에서 사용할 프레임워크와 후속 검토 도구 정리 |
 | `policy-rag-strategy.md` | 정책 문서 사용 기준과 답변 생성 원칙 정리 |
+| `rag-implementation-plan.md` | 초기 RAG 구현 기록 (archived baseline) |
 | `development-guide.md` | 브랜치, 커밋, PR, secret 관리 규칙 |
 | `local-setup.md` | 로컬 환경 세팅과 실행 전 준비 사항 |
+| `rag-quality-handoff.md` | RAG 검색 품질 구현 결과와 공통 인계 기준 |
+| `workflow-handoff.md` | workflow 담당자의 연동, timeout, ECS 반영 작업 |
+| `quality-handoff.md` | 품질 담당자의 RAG eval 데이터와 품질 gate |
 
 ## 문서 상태 기준
 

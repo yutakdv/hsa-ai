@@ -865,6 +865,8 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "llama-index" },
+    { name = "llama-index-embeddings-openai" },
+    { name = "llama-index-llms-openai" },
     { name = "pydantic" },
     { name = "pydantic-ai-slim", extra = ["openai"] },
     { name = "pydantic-settings" },
@@ -887,6 +889,8 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
     { name = "llama-index", specifier = ">=0.14.0" },
+    { name = "llama-index-embeddings-openai", specifier = ">=0.3.0" },
+    { name = "llama-index-llms-openai", specifier = ">=0.6.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
     { name = "pydantic", specifier = ">=2.8.0" },
     { name = "pydantic-ai-slim", extras = ["openai"], specifier = ">=1.89.0" },

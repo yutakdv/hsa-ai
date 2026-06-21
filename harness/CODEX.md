@@ -62,7 +62,7 @@ Codex는 함수 단위로 작업한다. 하나의 함수는 하나의 AI 출력 
 ### HSA AI 파트 함수
  
 ```python
-# 0. orchestrator (api-contract-v2.md POST /api/v1/inquiries/process의 진입점)
+# 0. orchestrator (api-contract-v2.md POST /api/inquiries/process의 진입점)
 def process_inquiry(inquiry: CustomerInquiry) -> InquiryProcessResult:
     ...
  
@@ -77,8 +77,10 @@ def decide_auto_reply(
 ) -> AutoReplyDecision:
     ...
  
-# 3. RAG 초안 생성 (근거 부족 시 None 반환)
-def generate_rag_draft(inquiry: CustomerInquiry) -> RagDraftAnswer | None:
+# 3. RAG 초안 생성 (근거 부족 시 (None, ...) 반환, 정책 충돌 시 risk_tags에 policy_conflict)
+def generate_rag_draft(
+    inquiry: CustomerInquiry,
+) -> tuple[RagDraftAnswer | None, list[RiskTag]]:
     ...
 ```
  

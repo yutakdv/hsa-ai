@@ -8,6 +8,7 @@ LLM client boundary.
 
 import os
 from collections.abc import Sequence
+from contextvars import ContextVar
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -21,6 +22,9 @@ DEFAULT_SYSTEM_PROMPT = (
     "Return only data that satisfies the requested structured output schema. "
     "Do not include markdown fences or extra prose."
 )
+# orchestrator 2차 재시도 시 True로 설정. AGENTS.md "2차 실패: 출력 형식 강제 지시 추가" 충족용.
+STRICT_OUTPUT_FORMAT: ContextVar[bool] = ContextVar("strict_output_format", default=False)
+_STRICT_FORMAT_DIRECTIVE = "Return JSON only. No prose, no markdown fences."
 
 
 def _resolve_model(model: str | None) -> str:
@@ -63,10 +67,17 @@ def generate_structured(
     if not prompt.strip():
         raise ValueError("prompt must not be empty")
 
+    resolved_system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
+    if STRICT_OUTPUT_FORMAT.get():
+        if isinstance(resolved_system_prompt, str):
+            resolved_system_prompt = f"{resolved_system_prompt} {_STRICT_FORMAT_DIRECTIVE}"
+        else:
+            resolved_system_prompt = [*resolved_system_prompt, _STRICT_FORMAT_DIRECTIVE]
+
     agent: Agent[None, OutputModelT] = Agent(
         model=_resolve_model(model),
         output_type=output_schema,
-        system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
+        system_prompt=resolved_system_prompt,
         retries=retries,
         output_retries=output_retries,
     )

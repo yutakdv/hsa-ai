@@ -1,5 +1,9 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
+
+os.environ.setdefault("HSA_TEST_MODE", "true")
 
 from app.main import app
 
@@ -24,7 +28,9 @@ def inquiry_with_context_payload() -> dict[str, object]:
         "message": "제 주문 언제 오나요?",
         "channel": "kakao",
         "context": {
-            "orderStatus": "배송 중",
+            "deliveryStatus": "IN_TRANSIT",
+            "carrier": "CJ대한통운",
             "trackingNumber": "1234-5678",
+            "currentLocation": "옥천HUB",
         },
     }

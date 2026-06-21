@@ -1,5 +1,5 @@
 """
-POST /api/v1/inquiries/process 엔드포인트 계약 검증.
+POST /api/inquiries/process 엔드포인트 계약 검증.
 
 이 테스트는 HTTP wrapper와 camelCase 응답 계약만 검증한다.
 workflow/service 동작은 unit test에서 별도로 검증하므로 실제 LLM provider를 호출하지 않는다.
@@ -35,14 +35,14 @@ def fake_process_inquiry(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_health_check(client: TestClient) -> None:
     res = client.get("/health")
     assert res.status_code == 200
-    assert res.json()["status"] == "OK"
+    assert res.json()["status"] == "AI server is healthy"
 
 
 def test_process_returns_200(
     client: TestClient,
     minimal_inquiry_payload: dict[str, object],
 ) -> None:
-    res = client.post("/api/v1/inquiries/process", json=minimal_inquiry_payload)
+    res = client.post("/api/inquiries/process", json=minimal_inquiry_payload)
     assert res.status_code == 200
 
 
@@ -51,7 +51,7 @@ def test_process_response_wrapper_shape(
     minimal_inquiry_payload: dict[str, object],
 ) -> None:
     """응답이 status / data / error 래퍼 구조를 갖추는지 확인."""
-    body = client.post("/api/v1/inquiries/process", json=minimal_inquiry_payload).json()
+    body = client.post("/api/inquiries/process", json=minimal_inquiry_payload).json()
     assert "status" in body
     assert "data" in body
     assert "error" in body
@@ -62,7 +62,7 @@ def test_process_response_camel_case_fields(
     minimal_inquiry_payload: dict[str, object],
 ) -> None:
     """data 필드의 키가 camelCase인지 확인 (snake_case 유출 방지)."""
-    data = client.post("/api/v1/inquiries/process", json=minimal_inquiry_payload).json()["data"]
+    data = client.post("/api/inquiries/process", json=minimal_inquiry_payload).json()["data"]
     assert "inquiryId" in data
     assert "autoReplyAvailable" in data
     assert "needsAdminReview" in data
@@ -78,7 +78,7 @@ def test_process_inquiry_id_echo(
     minimal_inquiry_payload: dict[str, object],
 ) -> None:
     """응답의 inquiryId가 요청의 inquiryId와 일치하는지 확인."""
-    data = client.post("/api/v1/inquiries/process", json=minimal_inquiry_payload).json()["data"]
+    data = client.post("/api/inquiries/process", json=minimal_inquiry_payload).json()["data"]
     assert data["inquiryId"] == minimal_inquiry_payload["inquiryId"]
 
 
@@ -86,18 +86,18 @@ def test_process_with_context(
     client: TestClient,
     inquiry_with_context_payload: dict[str, object],
 ) -> None:
-    res = client.post("/api/v1/inquiries/process", json=inquiry_with_context_payload)
+    res = client.post("/api/inquiries/process", json=inquiry_with_context_payload)
     assert res.status_code == 200
     assert res.json()["status"] in ("success", "needs_review", "error")
 
 
 def test_process_missing_required_fields(client: TestClient) -> None:
     """필수 필드 누락 시 422 반환."""
-    res = client.post("/api/v1/inquiries/process", json={"message": "문의 내용만 있음"})
+    res = client.post("/api/inquiries/process", json={"message": "문의 내용만 있음"})
     assert res.status_code == 422
 
 
 def test_process_empty_message(client: TestClient) -> None:
     """빈 message 전송 시 422 반환."""
-    res = client.post("/api/v1/inquiries/process", json={"inquiryId": "inq_x", "message": ""})
+    res = client.post("/api/inquiries/process", json={"inquiryId": "inq_x", "message": ""})
     assert res.status_code == 422

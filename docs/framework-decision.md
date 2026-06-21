@@ -80,6 +80,7 @@ LlamaIndex의 역할:
 - Markdown 정책 문서 로딩
 - 문서 chunking과 indexing
 - 문의와 관련된 정책 문서 조각 검색
+- LLM reranker를 통한 근거 후보 재정렬
 - 답변 생성에 사용할 source/citation 후보 제공
 
 이 프로젝트에서 RAG를 처음부터 직접 구현하지 않는다.

@@ -9,11 +9,11 @@ services:
       # 로컬 .venv(Mac 바이너리)가 컨테이너 환경을 오염시키지 않도록 차단
       - /workspace/.venv
       # LlamaIndex 인덱스 영속 저장
-      - storage:/workspace/storage
+      # 로컬 ./storage에 미리 빌드된 인덱스가 있으면 Docker에서 그대로 로드 (API 호출 없음)
+      # 없으면 컨테이너 시작 시 OpenAI Embedding API를 호출해 빌드
+      - ./storage:/workspace/storage
     env_file:
       - .env
     # 로컬 개발용: 코드 변경 시 자동 재시작
     command: uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload
 
-volumes:
-  storage:

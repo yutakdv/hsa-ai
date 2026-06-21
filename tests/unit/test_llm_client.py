@@ -73,6 +73,47 @@ def test_generate_structured_rejects_invalid_schema_output(
         )
 
 
+def test_generate_structured_appends_strict_directive_when_contextvar_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """STRICT_OUTPUT_FORMAT가 True면 AGENTS.md 계약 문구 전체가 system_prompt 끝에 붙는다."""
+    monkeypatch.setattr(llm_client, "Agent", FakeAgent, raising=False)
+    token = llm_client.STRICT_OUTPUT_FORMAT.set(True)
+    try:
+        llm_client.generate_structured(
+            prompt="분류 결과를 반환해줘.",
+            output_schema=SampleOutput,
+            model="test-model",
+            system_prompt="Return structured data only.",
+        )
+    finally:
+        llm_client.STRICT_OUTPUT_FORMAT.reset(token)
+
+    final_system_prompt = FakeAgent.created_with["kwargs"]["system_prompt"]
+    assert final_system_prompt == (
+        "Return structured data only. Return JSON only. No prose, no markdown fences."
+    )
+
+
+def test_generate_structured_omits_strict_directive_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """STRICT_OUTPUT_FORMAT가 기본값(False)이면 강제 지시어를 덧붙이지 않는다."""
+    monkeypatch.setattr(llm_client, "Agent", FakeAgent, raising=False)
+
+    llm_client.generate_structured(
+        prompt="분류 결과를 반환해줘.",
+        output_schema=SampleOutput,
+        model="test-model",
+        system_prompt="Return structured data only.",
+    )
+
+    assert (
+        FakeAgent.created_with["kwargs"]["system_prompt"]
+        == "Return structured data only."
+    )
+
+
 def test_generate_structured_requires_pydantic_model_schema() -> None:
     with pytest.raises(TypeError):
         llm_client.generate_structured(

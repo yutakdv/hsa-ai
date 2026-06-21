@@ -18,8 +18,9 @@ htmlcov/
 .env
 .env.*
 
-# LlamaIndex 인덱스 (volume으로 관리)
-storage/
+# LlamaIndex 인덱스: 이미지에 baking (ECS는 볼륨 없음 → 기동 시 load_index_from_storage로 로드만,
+# 재임베딩 비용/지연 제거). dev는 docker-compose 볼륨 마운트가 런타임에 덮어씀.
+# 정책 문서 변경/임베딩 모델·chunk 변경 시 인덱스 재생성→git commit 필요.
 
 # OS / IDE
 .DS_Store

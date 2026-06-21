@@ -7,7 +7,7 @@
 
 | 항목 | 기존 (v1) | 현재 (v2) |
 | --- | --- | --- |
-| 엔드포인트 | `POST /api/v1/answers/draft` | `POST /api/v1/inquiries/process` |
+| 엔드포인트 | `POST /api/v1/answers/draft` | `POST /api/inquiries/process` |
 | 필드 컨벤션 | snake_case | camelCase (AGENTS.md 이중 컨벤션 준수) |
 | 응답 구조 | flat | `status / data / error` 래퍼 |
 | 응답 필드 추가 | — | `autoReplyAvailable` |
@@ -20,7 +20,7 @@
 
 ``` mermaid
 flowchart TD
-    BE([Backend]) -->|"POST /api/v1/inquiries/process\n{ inquiryId, message, channel?, context? }"| VALID
+    BE([Backend]) -->|"POST /api/inquiries/process\n{ inquiryId, message, channel?, context? }"| VALID
 
     subgraph FastAPI ["FastAPI Route"]
         VALID{"CustomerInquiry\nPydantic 검증"}
@@ -102,7 +102,7 @@ flowchart TD
 | `process_inquiry` | `CustomerInquiry` | `InquiryProcessResult` | 아래 3개 함수 |
 | `classify_inquiry` | `CustomerInquiry` | `ClassificationResult` | LLM만 |
 | `decide_auto_reply` | `CustomerInquiry`, `ClassificationResult` | `AutoReplyDecision` | context + LLM 선택적 |
-| `generate_rag_draft` | `CustomerInquiry` | `RagDraftAnswer \| None` | LlamaIndex만 |
+| `generate_rag_draft` | `CustomerInquiry` | `tuple[RagDraftAnswer \| None, list[RiskTag]]` | LlamaIndex만 |
 
 `usedSources`, `needsAdminReview`, `riskTags` 결정은 `process_inquiry`만 수행한다.
 

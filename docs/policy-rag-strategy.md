@@ -13,6 +13,8 @@
 ```text
 Markdown 정책 문서
 -> 문서 검색
+-> 벡터 유사도 threshold 필터
+-> LLM reranker로 근거 재정렬
 -> Pydantic AI 답변 생성
 -> 구조화된 결과 반환
 ```
@@ -49,6 +51,22 @@ LlamaIndex는 Markdown 문서를 읽고 관련 내용을 찾는 기본 기능을
 ```text
 Backend가 문의와 context 전달
 -> AI가 정책 문서 근거 확인
+-> LLM reranker가 답변에 사용할 근거 선택
 -> Pydantic AI가 답변 초안 생성
 -> Backend에 답변 초안과 판단 메타데이터 반환
 ```
+
+## Reranker 초기 설정
+
+PoC 검색 품질 개선을 위해 벡터 검색 뒤에 LlamaIndex `LLMRerank`를 사용한다.
+복합 문의는 분류 단계에서 관리자 검토로 전환하므로, RAG 답변 생성에는 rerank 1위 정책 파일과
+같은 source의 chunk만 사용한다. 이를 통해 서로 다른 정책의 조건부 규칙이 섞이는 것을 막는다.
+
+| 환경변수 | 기본값 | 설명 |
+| --- | --- | --- |
+| `RAG_RELEVANCE_THRESHOLD` | `0.4` | 벡터 후보 relevance threshold |
+| `RAG_TOP_K` | `6` | 벡터 검색 후보 수 |
+| `RAG_RERANK_TOP_N` | `3` | reranker 최종 선택 수 |
+| `RAG_RERANK_MODEL` | `gpt-5-nano` | OpenAI reranker 모델 |
+
+초기 측정값과 품질 관리 담당자 인계 기준은 `rag-quality-handoff.md`를 따른다.
